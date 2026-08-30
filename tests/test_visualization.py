@@ -213,3 +213,41 @@ def test_network_nodes_are_interactive():
     assert 'class="network-node"' in svg
     assert 'data-node="192.168.1.10"' in svg
     assert 'data-node="192.168.1.20"' in svg
+
+def test_flow_contains_port_and_time_metadata():
+    flow = create_flow()
+
+    svg = render_flows_svg([flow])
+
+    assert 'data-source-port="50000"' in svg
+    assert 'data-destination-port="443"' in svg
+    assert 'data-start-time="1.0"' in svg
+    assert 'data-end-time="1.2"' in svg
+
+
+def test_flow_edges_have_click_handlers():
+    svg = render_flows_svg([create_flow()])
+
+    assert 'onclick="showFlowDetails(0)"' in svg
+
+
+def test_flow_details_panel_is_rendered():
+    svg = render_flows_svg([create_flow()])
+
+    assert 'id="flow-details"' in svg
+    assert 'id="details-source"' in svg
+    assert 'id="details-destination"' in svg
+    assert 'id="details-protocol"' in svg
+    assert 'id="details-ports"' in svg
+    assert 'id="details-packets"' in svg
+    assert 'id="details-bytes"' in svg
+    assert 'id="details-time"' in svg
+
+
+def test_flow_details_javascript_is_rendered():
+    svg = render_flows_svg([create_flow()])
+
+    assert "function showFlowDetails(index)" in svg
+    assert "function hideFlowDetails()" in svg
+    assert "classList.add(\"visible\")" in svg
+    assert "classList.add(\"selected\")" in svg

@@ -48,6 +48,10 @@ def render_flows_svg(
             opacity: 1;
         }
 
+        .flow-edge.selected {
+            stroke-width: 5;
+        }
+
         .flow-label {
             cursor: pointer;
             transition: font-weight 0.15s ease, opacity 0.15s ease;
@@ -72,6 +76,24 @@ def render_flows_svg(
 
         .network-node text {
             pointer-events: none;
+        }
+
+        .flow-details {
+            display: none;
+        }
+
+        .flow-details.visible {
+            display: block;
+        }
+
+        .details-background {
+            fill: white;
+            stroke: currentColor;
+            stroke-width: 2;
+        }
+
+        .details-close {
+            cursor: pointer;
         }
         """,
         "</style>",
@@ -125,7 +147,7 @@ def render_flows_svg(
             f'viewBox="0 0 {width} {height}">'
         )
 
-    # Draw connections first so nodes appear above them.
+    # Draw flow connections.
     for index, flow in enumerate(flows):
         source_x, source_y = node_positions[flow.source]
         destination_x, destination_y = node_positions[flow.destination]
@@ -140,6 +162,7 @@ def render_flows_svg(
             [
                 (
                     f'<line class="flow-edge" '
+                    f'id="flow-{index}" '
                     f'x1="{source_x}" y1="{source_y}" '
                     f'x2="{destination_x}" y2="{destination_y}" '
                     'stroke="currentColor" stroke-width="2" '
@@ -149,18 +172,24 @@ def render_flows_svg(
                     f'data-destination="{destination}" '
                     f'data-protocol="{protocol}" '
                     f'data-packets="{flow.packets}" '
-                    f'data-bytes="{flow.bytes}">'
+                    f'data-bytes="{flow.bytes}" '
+                    f'data-source-port="{flow.source_port}" '
+                    f'data-destination-port="{flow.destination_port}" '
+                    f'data-start-time="{flow.start_time}" '
+                    f'data-end-time="{flow.end_time}" '
+                    f'onclick="showFlowDetails({index})">'
                     f'<title>{source} → {destination} '
                     f'({protocol}, {flow.packets} packets, '
                     f'{flow.bytes} bytes)</title>'
-                    "</line>"
+                    '</line>'
                 ),
                 (
                     f'<text class="flow-label" '
                     f'x="{(source_x + destination_x) / 2}" '
                     f'y="{label_y}" text-anchor="middle" '
                     'font-family="sans-serif" font-size="12" '
-                    f'data-flow-label="{index}">'
+                    f'data-flow-label="{index}" '
+                    f'onclick="showFlowDetails({index})">'
                     f"{protocol} · "
                     f"{flow.packets} packets · "
                     f"{flow.bytes} bytes"
@@ -188,6 +217,128 @@ def render_flows_svg(
                 "</g>"
             )
         )
+
+    # Flow details panel.
+    panel_x = 20
+    panel_y = 20
+    panel_width = min(300, width - 40)
+    panel_height = 220
+
+    svg.extend(
+        [
+            (
+                f'<g id="flow-details" class="flow-details" '
+                f'transform="translate({panel_x},{panel_y})">'
+            ),
+            (
+                f'<rect class="details-background" '
+                f'width="{panel_width}" height="{panel_height}" '
+                'rx="8" />'
+            ),
+            (
+                '<text x="20" y="30" '
+                'font-family="sans-serif" font-size="16" '
+                'font-weight="bold">Flow Details</text>'
+            ),
+            (
+                '<text id="details-source" x="20" y="60" '
+                'font-family="monospace" font-size="12" />'
+            ),
+            (
+                '<text id="details-destination" x="20" y="82" '
+                'font-family="monospace" font-size="12" />'
+            ),
+            (
+                '<text id="details-protocol" x="20" y="104" '
+                'font-family="sans-serif" font-size="12" />'
+            ),
+            (
+                '<text id="details-ports" x="20" y="126" '
+                'font-family="sans-serif" font-size="12" />'
+            ),
+            (
+                '<text id="details-packets" x="20" y="148" '
+                'font-family="sans-serif" font-size="12" />'
+            ),
+            (
+                '<text id="details-bytes" x="20" y="170" '
+                'font-family="sans-serif" font-size="12" />'
+            ),
+            (
+                '<text id="details-time" x="20" y="192" '
+                'font-family="sans-serif" font-size="12" />'
+            ),
+            (
+                '<text class="details-close" x="270" y="30" '
+                'font-family="sans-serif" font-size="16" '
+                'onclick="hideFlowDetails()">×</text>'
+            ),
+            "</g>",
+        ]
+    )
+
+    # JavaScript for flow inspection.
+    svg.extend(
+        [
+            "<script><![CDATA[",
+            """
+            function showFlowDetails(index) {
+                const edge = document.getElementById("flow-" + index);
+                const panel = document.getElementById("flow-details");
+
+                if (!edge || !panel) {
+                    return;
+                }
+
+                document.querySelectorAll(".flow-edge.selected")
+                    .forEach(function (element) {
+                        element.classList.remove("selected");
+                    });
+
+                edge.classList.add("selected");
+
+                document.getElementById("details-source").textContent =
+                    "Source: " + edge.dataset.source;
+
+                document.getElementById("details-destination").textContent =
+                    "Destination: " + edge.dataset.destination;
+
+                document.getElementById("details-protocol").textContent =
+                    "Protocol: " + edge.dataset.protocol;
+
+                document.getElementById("details-ports").textContent =
+                    "Ports: " + edge.dataset.sourcePort +
+                    " → " + edge.dataset.destinationPort;
+
+                document.getElementById("details-packets").textContent =
+                    "Packets: " + edge.dataset.packets;
+
+                document.getElementById("details-bytes").textContent =
+                    "Bytes: " + edge.dataset.bytes;
+
+                document.getElementById("details-time").textContent =
+                    "Time: " + edge.dataset.startTime +
+                    " → " + edge.dataset.endTime;
+
+                panel.classList.add("visible");
+            }
+
+            function hideFlowDetails() {
+                const panel = document.getElementById("flow-details");
+
+                if (panel) {
+                    panel.classList.remove("visible");
+                }
+
+                document.querySelectorAll(".flow-edge.selected")
+                    .forEach(function (element) {
+                        element.classList.remove("selected");
+                    });
+            }
+            """,
+            "]]></script>",
+        ]
+    )
 
     svg.append("</svg>")
 
