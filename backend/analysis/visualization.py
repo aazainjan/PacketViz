@@ -9,7 +9,7 @@ def render_flows_svg(
     row_height: int = 100,
 ) -> str:
     """
-    Render network flows as an SVG visualization.
+    Render network flows as an interactive SVG visualization.
 
     Each unique endpoint is displayed as a node, while each flow
     is represented by a directed connection between its endpoints.
@@ -36,6 +36,45 @@ def render_flows_svg(
         ),
         '<path d="M0,0 L0,6 L9,3 z" />',
         "</marker>",
+        "<style>",
+        """
+        .flow-edge {
+            transition: stroke-width 0.15s ease, opacity 0.15s ease;
+            cursor: pointer;
+        }
+
+        .flow-edge:hover {
+            stroke-width: 4;
+            opacity: 1;
+        }
+
+        .flow-label {
+            cursor: pointer;
+            transition: font-weight 0.15s ease, opacity 0.15s ease;
+        }
+
+        .flow-label:hover {
+            font-weight: bold;
+        }
+
+        .network-node {
+            cursor: pointer;
+        }
+
+        .network-node circle {
+            transition: stroke-width 0.15s ease, fill-opacity 0.15s ease;
+        }
+
+        .network-node:hover circle {
+            stroke-width: 4;
+            fill-opacity: 0.2;
+        }
+
+        .network-node text {
+            pointer-events: none;
+        }
+        """,
+        "</style>",
         "</defs>",
     ]
 
@@ -114,7 +153,7 @@ def render_flows_svg(
                     f'<title>{source} → {destination} '
                     f'({protocol}, {flow.packets} packets, '
                     f'{flow.bytes} bytes)</title>'
-                    '</line>'
+                    "</line>"
                 ),
                 (
                     f'<text class="flow-label" '
@@ -134,22 +173,20 @@ def render_flows_svg(
     for endpoint, (x, y) in node_positions.items():
         label = escape(endpoint)
 
-        svg.extend(
-            [
-                (
-                    f'<g class="network-node" '
-                    f'data-node="{label}">'
-                    f'<title>{label}</title>'
-                    f'<circle cx="{x}" cy="{y}" r="30" '
-                    'fill="currentColor" fill-opacity="0.1" '
-                    'stroke="currentColor" stroke-width="2" />'
-                    f'<text x="{x}" y="{y + 5}" '
-                    'text-anchor="middle" '
-                    'font-family="monospace" font-size="12">'
-                    f"{label}</text>"
-                    "</g>"
-                ),
-            ]
+        svg.append(
+            (
+                f'<g class="network-node" '
+                f'data-node="{label}">'
+                f'<title>{label}</title>'
+                f'<circle cx="{x}" cy="{y}" r="30" '
+                'fill="currentColor" fill-opacity="0.1" '
+                'stroke="currentColor" stroke-width="2" />'
+                f'<text x="{x}" y="{y + 5}" '
+                'text-anchor="middle" '
+                'font-family="monospace" font-size="12">'
+                f"{label}</text>"
+                "</g>"
+            )
         )
 
     svg.append("</svg>")

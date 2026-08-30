@@ -184,3 +184,32 @@ def test_special_characters_are_escaped_in_metadata():
     assert "&lt;source&amp;server&gt;" in svg
     assert "destination&quot;server" in svg
     assert "TCP&amp;HTTPS" in svg
+
+def test_svg_contains_hover_styles():
+    svg = render_flows_svg([create_flow()])
+
+    assert ".flow-edge:hover" in svg
+    assert ".flow-label:hover" in svg
+    assert ".network-node:hover" in svg
+
+
+def test_flow_edges_are_marked_as_interactive():
+    svg = render_flows_svg([create_flow()])
+
+    assert 'class="flow-edge"' in svg
+    assert 'cursor: pointer' in svg
+
+
+def test_flow_labels_are_interactive():
+    svg = render_flows_svg([create_flow()])
+
+    assert 'class="flow-label"' in svg
+    assert 'data-flow-label="0"' in svg
+
+
+def test_network_nodes_are_interactive():
+    svg = render_flows_svg([create_flow()])
+
+    assert 'class="network-node"' in svg
+    assert 'data-node="192.168.1.10"' in svg
+    assert 'data-node="192.168.1.20"' in svg
