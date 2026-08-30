@@ -331,3 +331,36 @@ def test_node_peer_information_is_rendered():
 
     assert "Peers:" in svg
     assert "Connections:" in svg
+
+
+def test_connected_flow_styles_are_rendered():
+    svg = render_flows_svg([create_flow()])
+
+    assert ".flow-edge.connected" in svg
+    assert ".flow-edge.dimmed" in svg
+    assert ".flow-label.connected" in svg
+    assert ".flow-label.dimmed" in svg
+
+
+def test_node_connection_highlighting_javascript_is_rendered():
+    svg = render_flows_svg([create_flow()])
+
+    assert "function highlightNodeConnections(node)" in svg
+    assert "edge.dataset.source === node" in svg
+    assert "edge.dataset.destination === node" in svg
+
+
+def test_node_selection_triggers_connection_highlighting():
+    svg = render_flows_svg([create_flow()])
+
+    assert "highlightNodeConnections(node)" in svg
+    assert 'classList.add("connected")' in svg
+    assert 'classList.add("dimmed")' in svg
+
+
+def test_highlighting_can_be_cleared():
+    svg = render_flows_svg([create_flow()])
+
+    assert "function clearFlowHighlighting()" in svg
+    assert 'classList.remove("connected")' in svg
+    assert 'classList.remove("dimmed")' in svg

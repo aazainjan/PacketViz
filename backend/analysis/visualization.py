@@ -52,6 +52,15 @@ def render_flows_svg(
             stroke-width: 5;
         }
 
+        .flow-edge.connected {
+            stroke-width: 4;
+            opacity: 1;
+        }
+
+        .flow-edge.dimmed {
+            opacity: 0.2;
+        }
+
         .flow-label {
             cursor: pointer;
             transition: font-weight 0.15s ease, opacity 0.15s ease;
@@ -59,6 +68,15 @@ def render_flows_svg(
 
         .flow-label:hover {
             font-weight: bold;
+        }
+
+        .flow-label.connected {
+            font-weight: bold;
+            opacity: 1;
+        }
+
+        .flow-label.dimmed {
+            opacity: 0.2;
         }
 
         .network-node {
@@ -210,6 +228,7 @@ def render_flows_svg(
                 ),
                 (
                     f'<text class="flow-label" '
+                    f'id="flow-label-{index}" '
                     f'x="{(source_x + destination_x) / 2}" '
                     f'y="{label_y}" text-anchor="middle" '
                     'font-family="sans-serif" font-size="12" '
@@ -365,6 +384,65 @@ def render_flows_svg(
         [
             "<script><![CDATA[",
             """
+            function clearFlowHighlighting() {
+                document.querySelectorAll(".flow-edge").forEach(
+                    function (edge) {
+                        edge.classList.remove("connected");
+                        edge.classList.remove("dimmed");
+                    }
+                );
+
+                document.querySelectorAll(".flow-label").forEach(
+                    function (label) {
+                        label.classList.remove("connected");
+                        label.classList.remove("dimmed");
+                    }
+                );
+            }
+
+            function highlightNodeConnections(node) {
+                document.querySelectorAll(".flow-edge").forEach(
+                    function (edge) {
+                        const connected =
+                            edge.dataset.source === node ||
+                            edge.dataset.destination === node;
+
+                        if (connected) {
+                            edge.classList.add("connected");
+                            edge.classList.remove("dimmed");
+                        } else {
+                            edge.classList.add("dimmed");
+                            edge.classList.remove("connected");
+                        }
+                    }
+                );
+
+                document.querySelectorAll(".flow-label").forEach(
+                    function (label) {
+                        const index = label.dataset.flowLabel;
+                        const edge = document.getElementById(
+                            "flow-" + index
+                        );
+
+                        if (!edge) {
+                            return;
+                        }
+
+                        const connected =
+                            edge.dataset.source === node ||
+                            edge.dataset.destination === node;
+
+                        if (connected) {
+                            label.classList.add("connected");
+                            label.classList.remove("dimmed");
+                        } else {
+                            label.classList.add("dimmed");
+                            label.classList.remove("connected");
+                        }
+                    }
+                );
+            }
+
             function showFlowDetails(index) {
                 const edge = document.getElementById("flow-" + index);
                 const panel = document.getElementById("flow-details");
@@ -372,6 +450,8 @@ def render_flows_svg(
                 if (!edge || !panel) {
                     return;
                 }
+
+                clearFlowHighlighting();
 
                 document.querySelectorAll(".flow-edge.selected")
                     .forEach(function (element) {
@@ -425,6 +505,8 @@ def render_flows_svg(
                     .forEach(function (element) {
                         element.classList.remove("selected");
                     });
+
+                clearFlowHighlighting();
             }
 
             function showNodeDetails(node) {
@@ -451,6 +533,9 @@ def render_flows_svg(
                     });
 
                 selectedNode.classList.add("selected");
+
+                clearFlowHighlighting();
+                highlightNodeConnections(node);
 
                 const flows = selectedNode.dataset.flows;
                 const packets = selectedNode.dataset.packets;
@@ -518,6 +603,8 @@ def render_flows_svg(
                     .forEach(function (element) {
                         element.classList.remove("selected");
                     });
+
+                clearFlowHighlighting();
             }
             """,
             "]]></script>",
