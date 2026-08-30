@@ -9,7 +9,7 @@ def render_flows_svg(
     row_height: int = 100,
 ) -> str:
     """
-    Render network flows as a simple SVG visualization.
+    Render network flows as an SVG visualization.
 
     Each unique endpoint is displayed as a node, while each flow
     is represented by a directed connection between its endpoints.
@@ -47,41 +47,90 @@ def render_flows_svg(
         svg.append("</svg>")
         return "\n".join(svg)
 
+    # Collect unique endpoints.
+    endpoints: list[str] = []
+
+    for flow in flows:
+        if flow.source not in endpoints:
+            endpoints.append(flow.source)
+
+        if flow.destination not in endpoints:
+            endpoints.append(flow.destination)
+
+    # Place nodes in two columns.
+    node_positions: dict[str, tuple[float, float]] = {}
+
+    left_x = 120
+    right_x = width - 120
+
+    for index, endpoint in enumerate(endpoints):
+        y = 60 + (index * row_height)
+
+        if index % 2 == 0:
+            node_positions[endpoint] = (left_x, y)
+        else:
+            node_positions[endpoint] = (right_x, y)
+
+    # Keep the visualization large enough for all nodes.
+    required_height = max(
+        height,
+        max((position[1] for position in node_positions.values()), default=0) + 60,
+    )
+
+    if required_height != height:
+        height = required_height
+        svg[0] = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" '
+            f'width="{width}" height="{height}" '
+            f'viewBox="0 0 {width} {height}">'
+        )
+
+    # Draw connections first so nodes appear above them.
     for index, flow in enumerate(flows):
-        y = (index * row_height) + (row_height / 2)
+        source_x, source_y = node_positions[flow.source]
+        destination_x, destination_y = node_positions[flow.destination]
 
-        source = escape(flow.source)
-        destination = escape(flow.destination)
-        protocol = escape(flow.protocol)
-
-        source_label = source
-        destination_label = destination
+        label_y = min(source_y, destination_y) - 10
 
         svg.extend(
             [
                 (
-                    f'<line x1="180" y1="{y}" '
-                    f'x2="{width - 180}" y2="{y}" '
+                    f'<line x1="{source_x}" y1="{source_y}" '
+                    f'x2="{destination_x}" y2="{destination_y}" '
                     'stroke="currentColor" stroke-width="2" '
-                    'marker-end="url(#arrow)" />'
+                    'marker-end="url(#arrow)" '
+                    f'data-flow-index="{index}" />'
                 ),
                 (
-                    f'<text x="20" y="{y + 5}" '
-                    f'font-family="monospace" font-size="14">'
-                    f"{source_label}</text>"
+                    f'<text x="{(source_x + destination_x) / 2}" '
+                    f'y="{label_y}" text-anchor="middle" '
+                    'font-family="sans-serif" font-size="12" '
+                    f'data-flow-label="{index}">'
+                    f"{escape(flow.protocol)} · "
+                    f"{flow.packets} packets · "
+                    f"{flow.bytes} bytes"
+                    "</text>"
+                ),
+            ]
+        )
+
+    # Draw endpoint nodes.
+    for endpoint, (x, y) in node_positions.items():
+        label = escape(endpoint)
+
+        svg.extend(
+            [
+                (
+                    f'<circle cx="{x}" cy="{y}" r="30" '
+                    'fill="currentColor" fill-opacity="0.1" '
+                    'stroke="currentColor" stroke-width="2" '
+                    f'data-node="{label}" />'
                 ),
                 (
-                    f'<text x="{width - 20}" y="{y + 5}" '
-                    f'text-anchor="end" '
-                    f'font-family="monospace" font-size="14">'
-                    f"{destination_label}</text>"
-                ),
-                (
-                    f'<text x="{width / 2}" y="{y - 10}" '
-                    f'text-anchor="middle" '
-                    f'font-family="sans-serif" font-size="12">'
-                    f"{protocol} · {flow.packets} packets · "
-                    f"{flow.bytes} bytes</text>"
+                    f'<text x="{x}" y="{y + 5}" '
+                    'text-anchor="middle" '
+                    'font-family="monospace" font-size="12">'
+                    f"{label}</text>"
                 ),
             ]
         )
