@@ -47,7 +47,6 @@ def render_flows_svg(
         svg.append("</svg>")
         return "\n".join(svg)
 
-    # Collect unique endpoints.
     endpoints: list[str] = []
 
     for flow in flows:
@@ -57,7 +56,6 @@ def render_flows_svg(
         if flow.destination not in endpoints:
             endpoints.append(flow.destination)
 
-    # Place nodes in two columns.
     node_positions: dict[str, tuple[float, float]] = {}
 
     left_x = 120
@@ -71,10 +69,13 @@ def render_flows_svg(
         else:
             node_positions[endpoint] = (right_x, y)
 
-    # Keep the visualization large enough for all nodes.
     required_height = max(
         height,
-        max((position[1] for position in node_positions.values()), default=0) + 60,
+        max(
+            (position[1] for position in node_positions.values()),
+            default=0,
+        )
+        + 60,
     )
 
     if required_height != height:
@@ -92,21 +93,36 @@ def render_flows_svg(
 
         label_y = min(source_y, destination_y) - 10
 
+        source = escape(flow.source)
+        destination = escape(flow.destination)
+        protocol = escape(flow.protocol)
+
         svg.extend(
             [
                 (
-                    f'<line x1="{source_x}" y1="{source_y}" '
+                    f'<line class="flow-edge" '
+                    f'x1="{source_x}" y1="{source_y}" '
                     f'x2="{destination_x}" y2="{destination_y}" '
                     'stroke="currentColor" stroke-width="2" '
                     'marker-end="url(#arrow)" '
-                    f'data-flow-index="{index}" />'
+                    f'data-flow-index="{index}" '
+                    f'data-source="{source}" '
+                    f'data-destination="{destination}" '
+                    f'data-protocol="{protocol}" '
+                    f'data-packets="{flow.packets}" '
+                    f'data-bytes="{flow.bytes}">'
+                    f'<title>{source} → {destination} '
+                    f'({protocol}, {flow.packets} packets, '
+                    f'{flow.bytes} bytes)</title>'
+                    '</line>'
                 ),
                 (
-                    f'<text x="{(source_x + destination_x) / 2}" '
+                    f'<text class="flow-label" '
+                    f'x="{(source_x + destination_x) / 2}" '
                     f'y="{label_y}" text-anchor="middle" '
                     'font-family="sans-serif" font-size="12" '
                     f'data-flow-label="{index}">'
-                    f"{escape(flow.protocol)} · "
+                    f"{protocol} · "
                     f"{flow.packets} packets · "
                     f"{flow.bytes} bytes"
                     "</text>"
@@ -121,16 +137,17 @@ def render_flows_svg(
         svg.extend(
             [
                 (
+                    f'<g class="network-node" '
+                    f'data-node="{label}">'
+                    f'<title>{label}</title>'
                     f'<circle cx="{x}" cy="{y}" r="30" '
                     'fill="currentColor" fill-opacity="0.1" '
-                    'stroke="currentColor" stroke-width="2" '
-                    f'data-node="{label}" />'
-                ),
-                (
+                    'stroke="currentColor" stroke-width="2" />'
                     f'<text x="{x}" y="{y + 5}" '
                     'text-anchor="middle" '
                     'font-family="monospace" font-size="12">'
                     f"{label}</text>"
+                    "</g>"
                 ),
             ]
         )

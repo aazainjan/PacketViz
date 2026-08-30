@@ -134,3 +134,53 @@ def test_invalid_width():
 def test_invalid_row_height():
     with pytest.raises(ValueError):
         render_flows_svg([], row_height=0)
+
+def test_flow_contains_interaction_metadata():
+    flow = create_flow(
+        protocol="TCP",
+        packets=7,
+        bytes_=512,
+    )
+
+    svg = render_flows_svg([flow])
+
+    assert 'class="flow-edge"' in svg
+    assert 'data-flow-index="0"' in svg
+    assert 'data-source="192.168.1.10"' in svg
+    assert 'data-destination="192.168.1.20"' in svg
+    assert 'data-protocol="TCP"' in svg
+    assert 'data-packets="7"' in svg
+    assert 'data-bytes="512"' in svg
+
+
+def test_nodes_have_interaction_metadata():
+    svg = render_flows_svg([create_flow()])
+
+    assert 'class="network-node"' in svg
+    assert 'data-node="192.168.1.10"' in svg
+    assert 'data-node="192.168.1.20"' in svg
+
+
+def test_flow_contains_svg_tooltip():
+    svg = render_flows_svg([create_flow()])
+
+    assert "<title>" in svg
+    assert "192.168.1.10" in svg
+    assert "192.168.1.20" in svg
+    assert "TCP" in svg
+    assert "3 packets" in svg
+    assert "260 bytes" in svg
+
+
+def test_special_characters_are_escaped_in_metadata():
+    flow = create_flow(
+        source='<source&server>',
+        destination='destination"server',
+        protocol="TCP&HTTPS",
+    )
+
+    svg = render_flows_svg([flow])
+
+    assert "&lt;source&amp;server&gt;" in svg
+    assert "destination&quot;server" in svg
+    assert "TCP&amp;HTTPS" in svg
