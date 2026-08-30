@@ -135,6 +135,7 @@ def test_invalid_row_height():
     with pytest.raises(ValueError):
         render_flows_svg([], row_height=0)
 
+
 def test_flow_contains_interaction_metadata():
     flow = create_flow(
         protocol="TCP",
@@ -174,7 +175,7 @@ def test_flow_contains_svg_tooltip():
 
 def test_special_characters_are_escaped_in_metadata():
     flow = create_flow(
-        source='<source&server>',
+        source="<source&server>",
         destination='destination"server',
         protocol="TCP&HTTPS",
     )
@@ -184,6 +185,7 @@ def test_special_characters_are_escaped_in_metadata():
     assert "&lt;source&amp;server&gt;" in svg
     assert "destination&quot;server" in svg
     assert "TCP&amp;HTTPS" in svg
+
 
 def test_svg_contains_hover_styles():
     svg = render_flows_svg([create_flow()])
@@ -197,7 +199,7 @@ def test_flow_edges_are_marked_as_interactive():
     svg = render_flows_svg([create_flow()])
 
     assert 'class="flow-edge"' in svg
-    assert 'cursor: pointer' in svg
+    assert "cursor: pointer" in svg
 
 
 def test_flow_labels_are_interactive():
@@ -213,6 +215,7 @@ def test_network_nodes_are_interactive():
     assert 'class="network-node"' in svg
     assert 'data-node="192.168.1.10"' in svg
     assert 'data-node="192.168.1.20"' in svg
+
 
 def test_flow_contains_port_and_time_metadata():
     flow = create_flow()
@@ -249,5 +252,82 @@ def test_flow_details_javascript_is_rendered():
 
     assert "function showFlowDetails(index)" in svg
     assert "function hideFlowDetails()" in svg
-    assert "classList.add(\"visible\")" in svg
-    assert "classList.add(\"selected\")" in svg
+    assert 'classList.add("visible")' in svg
+    assert 'classList.add("selected")' in svg
+
+
+def test_nodes_have_flow_statistics():
+    flows = [
+        create_flow(
+            source="192.168.1.10",
+            destination="192.168.1.20",
+            packets=3,
+            bytes_=260,
+        ),
+        create_flow(
+            source="192.168.1.10",
+            destination="8.8.8.8",
+            protocol="UDP",
+            packets=5,
+            bytes_=400,
+        ),
+    ]
+
+    svg = render_flows_svg(flows)
+
+    assert 'data-node="192.168.1.10"' in svg
+    assert 'data-flows="2"' in svg
+    assert 'data-packets="8"' in svg
+    assert 'data-bytes="660"' in svg
+
+
+def test_node_click_handler_is_rendered():
+    svg = render_flows_svg([create_flow()])
+
+    assert "showNodeDetails" in svg
+    assert "onclick=" in svg
+
+
+def test_node_details_panel_is_rendered():
+    svg = render_flows_svg([create_flow()])
+
+    assert 'id="node-details"' in svg
+    assert 'id="node-details-address"' in svg
+    assert 'id="node-details-flows"' in svg
+    assert 'id="node-details-packets"' in svg
+    assert 'id="node-details-bytes"' in svg
+    assert 'id="node-details-connections"' in svg
+
+
+def test_node_selection_style_is_rendered():
+    svg = render_flows_svg([create_flow()])
+
+    assert ".network-node.selected" in svg
+    assert 'classList.add("selected")' in svg
+
+
+def test_node_details_javascript_is_rendered():
+    svg = render_flows_svg([create_flow()])
+
+    assert "function showNodeDetails(node)" in svg
+    assert "function hideNodeDetails()" in svg
+    assert "node-details" in svg
+
+
+def test_node_peer_information_is_rendered():
+    flows = [
+        create_flow(
+            source="192.168.1.10",
+            destination="192.168.1.20",
+        ),
+        create_flow(
+            source="192.168.1.10",
+            destination="8.8.8.8",
+            protocol="UDP",
+        ),
+    ]
+
+    svg = render_flows_svg(flows)
+
+    assert "Peers:" in svg
+    assert "Connections:" in svg

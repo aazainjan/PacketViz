@@ -74,6 +74,11 @@ def render_flows_svg(
             fill-opacity: 0.2;
         }
 
+        .network-node.selected circle {
+            stroke-width: 5;
+            fill-opacity: 0.25;
+        }
+
         .network-node text {
             pointer-events: none;
         }
@@ -110,12 +115,32 @@ def render_flows_svg(
 
     endpoints: list[str] = []
 
+    node_stats: dict[str, dict[str, object]] = {}
+
     for flow in flows:
         if flow.source not in endpoints:
             endpoints.append(flow.source)
 
         if flow.destination not in endpoints:
             endpoints.append(flow.destination)
+
+        for endpoint in (flow.source, flow.destination):
+            if endpoint not in node_stats:
+                node_stats[endpoint] = {
+                    "flows": 0,
+                    "packets": 0,
+                    "bytes": 0,
+                    "connections": set(),
+                }
+
+            stats = node_stats[endpoint]
+
+            stats["flows"] = int(stats["flows"]) + 1
+            stats["packets"] = int(stats["packets"]) + flow.packets
+            stats["bytes"] = int(stats["bytes"]) + flow.bytes
+
+        node_stats[flow.source]["connections"].add(flow.destination)
+        node_stats[flow.destination]["connections"].add(flow.source)
 
     node_positions: dict[str, tuple[float, float]] = {}
 
@@ -181,7 +206,7 @@ def render_flows_svg(
                     f'<title>{source} → {destination} '
                     f'({protocol}, {flow.packets} packets, '
                     f'{flow.bytes} bytes)</title>'
-                    '</line>'
+                    "</line>"
                 ),
                 (
                     f'<text class="flow-label" '
@@ -201,12 +226,17 @@ def render_flows_svg(
     # Draw endpoint nodes.
     for endpoint, (x, y) in node_positions.items():
         label = escape(endpoint)
+        stats = node_stats[endpoint]
 
         svg.append(
             (
                 f'<g class="network-node" '
-                f'data-node="{label}">'
-                f'<title>{label}</title>'
+                f'data-node="{label}" '
+                f'data-flows="{stats["flows"]}" '
+                f'data-packets="{stats["packets"]}" '
+                f'data-bytes="{stats["bytes"]}" '
+                f'onclick="showNodeDetails(\'{label}\')">'
+                f'<title>{label} — click to inspect</title>'
                 f'<circle cx="{x}" cy="{y}" r="30" '
                 'fill="currentColor" fill-opacity="0.1" '
                 'stroke="currentColor" stroke-width="2" />'
@@ -277,7 +307,60 @@ def render_flows_svg(
         ]
     )
 
-    # JavaScript for flow inspection.
+    # Node details panel.
+    node_panel_y = panel_y + panel_height + 20
+    node_panel_height = 200
+
+    svg.extend(
+        [
+            (
+                f'<g id="node-details" class="flow-details" '
+                f'transform="translate({panel_x},{node_panel_y})">'
+            ),
+            (
+                f'<rect class="details-background" '
+                f'width="{panel_width}" height="{node_panel_height}" '
+                'rx="8" />'
+            ),
+            (
+                '<text x="20" y="30" '
+                'font-family="sans-serif" font-size="16" '
+                'font-weight="bold">Node Details</text>'
+            ),
+            (
+                '<text id="node-details-address" x="20" y="60" '
+                'font-family="monospace" font-size="12" />'
+            ),
+            (
+                '<text id="node-details-flows" x="20" y="82" '
+                'font-family="sans-serif" font-size="12" />'
+            ),
+            (
+                '<text id="node-details-packets" x="20" y="104" '
+                'font-family="sans-serif" font-size="12" />'
+            ),
+            (
+                '<text id="node-details-bytes" x="20" y="126" '
+                'font-family="sans-serif" font-size="12" />'
+            ),
+            (
+                '<text id="node-details-connections" x="20" y="148" '
+                'font-family="sans-serif" font-size="12" />'
+            ),
+            (
+                '<text id="node-details-peer-list" x="20" y="170" '
+                'font-family="sans-serif" font-size="11" />'
+            ),
+            (
+                '<text class="details-close" x="270" y="30" '
+                'font-family="sans-serif" font-size="16" '
+                'onclick="hideNodeDetails()">×</text>'
+            ),
+            "</g>",
+        ]
+    )
+
+    # JavaScript for flow and node inspection.
     svg.extend(
         [
             "<script><![CDATA[",
@@ -294,6 +377,14 @@ def render_flows_svg(
                     .forEach(function (element) {
                         element.classList.remove("selected");
                     });
+
+                document.querySelectorAll(".network-node.selected")
+                    .forEach(function (element) {
+                        element.classList.remove("selected");
+                    });
+
+                document.getElementById("node-details")
+                    .classList.remove("visible");
 
                 edge.classList.add("selected");
 
@@ -331,6 +422,99 @@ def render_flows_svg(
                 }
 
                 document.querySelectorAll(".flow-edge.selected")
+                    .forEach(function (element) {
+                        element.classList.remove("selected");
+                    });
+            }
+
+            function showNodeDetails(node) {
+                const nodes = document.querySelectorAll(".network-node");
+
+                nodes.forEach(function (element) {
+                    element.classList.remove("selected");
+                });
+
+                const selectedNode = document.querySelector(
+                    '.network-node[data-node="' + node + '"]'
+                );
+
+                if (!selectedNode) {
+                    return;
+                }
+
+                document.getElementById("flow-details")
+                    .classList.remove("visible");
+
+                document.querySelectorAll(".flow-edge.selected")
+                    .forEach(function (element) {
+                        element.classList.remove("selected");
+                    });
+
+                selectedNode.classList.add("selected");
+
+                const flows = selectedNode.dataset.flows;
+                const packets = selectedNode.dataset.packets;
+                const bytes = selectedNode.dataset.bytes;
+
+                const peers = [];
+
+                document.querySelectorAll(".flow-edge").forEach(
+                    function (edge) {
+                        if (
+                            edge.dataset.source === node &&
+                            !peers.includes(edge.dataset.destination)
+                        ) {
+                            peers.push(edge.dataset.destination);
+                        }
+
+                        if (
+                            edge.dataset.destination === node &&
+                            !peers.includes(edge.dataset.source)
+                        ) {
+                            peers.push(edge.dataset.source);
+                        }
+                    }
+                );
+
+                document.getElementById(
+                    "node-details-address"
+                ).textContent = "Address: " + node;
+
+                document.getElementById(
+                    "node-details-flows"
+                ).textContent = "Flows: " + flows;
+
+                document.getElementById(
+                    "node-details-packets"
+                ).textContent = "Packets: " + packets;
+
+                document.getElementById(
+                    "node-details-bytes"
+                ).textContent = "Bytes: " + bytes;
+
+                document.getElementById(
+                    "node-details-connections"
+                ).textContent =
+                    "Connections: " + peers.length;
+
+                document.getElementById(
+                    "node-details-peer-list"
+                ).textContent =
+                    "Peers: " + (peers.length ? peers.join(", ") : "None");
+
+                document.getElementById(
+                    "node-details"
+                ).classList.add("visible");
+            }
+
+            function hideNodeDetails() {
+                const panel = document.getElementById("node-details");
+
+                if (panel) {
+                    panel.classList.remove("visible");
+                }
+
+                document.querySelectorAll(".network-node.selected")
                     .forEach(function (element) {
                         element.classList.remove("selected");
                     });
