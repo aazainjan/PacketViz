@@ -145,7 +145,7 @@ def test_flow_contains_interaction_metadata():
 
     svg = render_flows_svg([flow])
 
-    assert 'class="flow-edge"' in svg
+    assert 'class="flow-edge ' in svg
     assert 'data-flow-index="0"' in svg
     assert 'data-source="192.168.1.10"' in svg
     assert 'data-destination="192.168.1.20"' in svg
@@ -198,7 +198,7 @@ def test_svg_contains_hover_styles():
 def test_flow_edges_are_marked_as_interactive():
     svg = render_flows_svg([create_flow()])
 
-    assert 'class="flow-edge"' in svg
+    assert 'class="flow-edge ' in svg
     assert "cursor: pointer" in svg
 
 
@@ -364,3 +364,39 @@ def test_highlighting_can_be_cleared():
     assert "function clearFlowHighlighting()" in svg
     assert 'classList.remove("connected")' in svg
     assert 'classList.remove("dimmed")' in svg
+
+def test_tcp_flow_has_tcp_protocol_class():
+    svg = render_flows_svg([create_flow(protocol="TCP")])
+
+    assert 'class="flow-edge tcp"' in svg
+    assert 'data-protocol-class="tcp"' in svg
+
+
+def test_udp_flow_has_udp_protocol_class():
+    svg = render_flows_svg([create_flow(protocol="UDP")])
+
+    assert 'class="flow-edge udp"' in svg
+    assert 'data-protocol-class="udp"' in svg
+
+
+def test_icmp_flow_has_icmp_protocol_class():
+    svg = render_flows_svg([create_flow(protocol="ICMP")])
+
+    assert 'class="flow-edge icmp"' in svg
+    assert 'data-protocol-class="icmp"' in svg
+
+
+def test_unknown_protocol_uses_other_class():
+    svg = render_flows_svg([create_flow(protocol="SCTP")])
+
+    assert 'class="flow-edge other"' in svg
+    assert 'data-protocol-class="other"' in svg
+
+
+def test_protocol_styles_are_rendered():
+    svg = render_flows_svg([create_flow(protocol="TCP")])
+
+    assert ".flow-edge.tcp" in svg
+    assert ".flow-edge.udp" in svg
+    assert ".flow-edge.icmp" in svg
+    assert ".flow-edge.other" in svg

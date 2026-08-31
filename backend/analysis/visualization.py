@@ -3,6 +3,22 @@ from html import escape
 from backend.analysis.flows import NetworkFlow
 
 
+def _protocol_class(protocol: str) -> str:
+    """Return a safe CSS class for a network protocol."""
+    normalized = protocol.strip().lower()
+
+    if normalized == "tcp":
+        return "tcp"
+
+    if normalized == "udp":
+        return "udp"
+
+    if normalized == "icmp":
+        return "icmp"
+
+    return "other"
+
+
 def render_flows_svg(
     flows: list[NetworkFlow],
     width: int = 800,
@@ -39,7 +55,9 @@ def render_flows_svg(
         "<style>",
         """
         .flow-edge {
-            transition: stroke-width 0.15s ease, opacity 0.15s ease;
+            transition:
+                stroke-width 0.15s ease,
+                opacity 0.15s ease;
             cursor: pointer;
         }
 
@@ -61,9 +79,27 @@ def render_flows_svg(
             opacity: 0.2;
         }
 
+        .flow-edge.tcp {
+            stroke: #2563eb;
+        }
+
+        .flow-edge.udp {
+            stroke: #16a34a;
+        }
+
+        .flow-edge.icmp {
+            stroke: #dc2626;
+        }
+
+        .flow-edge.other {
+            stroke: #6b7280;
+        }
+
         .flow-label {
             cursor: pointer;
-            transition: font-weight 0.15s ease, opacity 0.15s ease;
+            transition:
+                font-weight 0.15s ease,
+                opacity 0.15s ease;
         }
 
         .flow-label:hover {
@@ -84,7 +120,9 @@ def render_flows_svg(
         }
 
         .network-node circle {
-            transition: stroke-width 0.15s ease, fill-opacity 0.15s ease;
+            transition:
+                stroke-width 0.15s ease,
+                fill-opacity 0.15s ease;
         }
 
         .network-node:hover circle {
@@ -184,6 +222,7 @@ def render_flows_svg(
 
     if required_height != height:
         height = required_height
+
         svg[0] = (
             f'<svg xmlns="http://www.w3.org/2000/svg" '
             f'width="{width}" height="{height}" '
@@ -201,10 +240,12 @@ def render_flows_svg(
         destination = escape(flow.destination)
         protocol = escape(flow.protocol)
 
+        protocol_class = _protocol_class(flow.protocol)
+
         svg.extend(
             [
                 (
-                    f'<line class="flow-edge" '
+                    f'<line class="flow-edge {protocol_class}" '
                     f'id="flow-{index}" '
                     f'x1="{source_x}" y1="{source_y}" '
                     f'x2="{destination_x}" y2="{destination_y}" '
@@ -214,6 +255,7 @@ def render_flows_svg(
                     f'data-source="{source}" '
                     f'data-destination="{destination}" '
                     f'data-protocol="{protocol}" '
+                    f'data-protocol-class="{protocol_class}" '
                     f'data-packets="{flow.packets}" '
                     f'data-bytes="{flow.bytes}" '
                     f'data-source-port="{flow.source_port}" '
@@ -233,6 +275,7 @@ def render_flows_svg(
                     f'y="{label_y}" text-anchor="middle" '
                     'font-family="sans-serif" font-size="12" '
                     f'data-flow-label="{index}" '
+                    f'data-protocol-class="{protocol_class}" '
                     f'onclick="showFlowDetails({index})">'
                     f"{protocol} · "
                     f"{flow.packets} packets · "
